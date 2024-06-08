@@ -7,6 +7,9 @@
 #include <errno.h>  // Utilisez <errno.h> au lieu de <cerrno>
 #include <algorithm> // Pour std::max et std::min
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "include/stb_image.h"
+
 // Fonction pour lire un fichier shader
 std::string readFile(const char* filePath) {
     std::ifstream file(filePath);
@@ -82,12 +85,8 @@ int main() {
         return -1;
     }
 
-    // Obtenir le moniteur principal
-    GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
-
-    // Créer une fenêtre en plein écran
-    GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "OpenGL Shader Example", primaryMonitor, nullptr);
+    // Créer une fenêtre de taille fixe
+    GLFWwindow* window = glfwCreateWindow(800, 600, "OpenGL Shader Example", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -111,10 +110,11 @@ int main() {
     GLuint shaderProgram = createShaderProgram(vertexShader, fragmentShader);
 
     float vertices[] = {
-        -1.0f, -1.0f, 0.0f,
-         1.0f, -1.0f, 0.0f,
-         1.0f,  1.0f, 0.0f,
-        -1.0f,  1.0f, 0.0f
+        // positions          // texture coords
+        -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,
+         1.0f, -1.0f, 0.0f,  1.0f, 0.0f,
+         1.0f,  1.0f, 0.0f,  1.0f, 1.0f,
+        -1.0f,  1.0f, 0.0f,  0.0f, 1.0f
     };
 
     GLuint indices[] = {
@@ -135,16 +135,49 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    // Texture coord attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+    // Charger la texture
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load("texture/pierre.jpg", &width, &height, &nrChannels, 0);
+    if (!data) {
+        std::cerr << "Failed to load texture" << std::endl;
+        return -1;
+    }
+
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    // Définir les paramètres de la texture
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Charger les données de l'image
+    if (nrChannels == 3) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    } else if (nrChannels == 4) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    }
+
+    glGenerateMipmap(GL_TEXTURE_2D);
+    stbi_image_free(data);
 
     // Obtenir les locations des uniformes
     GLint iResolutionLocation = glGetUniformLocation(shaderProgram, "iResolution");
     GLint iTimeLocation = glGetUniformLocation(shaderProgram, "iTime");
     GLint iMouseLocation = glGetUniformLocation(shaderProgram, "iMouse");
+    GLint texture1Location = glGetUniformLocation(shaderProgram, "texture1"); // Ajoutez ceci
 
     float timeOffset = 0.0f;
 
@@ -154,7 +187,7 @@ int main() {
             glfwGetCursorPos(window, &mouseX, &mouseY);
 
             // Limiter la coordonnée Y de la souris
-            mouseY = std::max(0.1 * mode->height, std::min(mouseY, 0.9 * mode->height));
+            mouseY = std::max(0.1 * 600, std::min(mouseY, 0.9 * 600));
         } else {
             // Utiliser les coordonnées de la souris lors de la pause
             mouseX = pausedMouseX;
@@ -166,7 +199,7 @@ int main() {
         glUseProgram(shaderProgram);
 
         // Envoyer les uniformes
-        glUniform2f(iResolutionLocation, mode->width, mode->height);
+        glUniform2f(iResolutionLocation, 800, 600);
 
         if (!paused) {
             glUniform1f(iTimeLocation, (float)glfwGetTime() - timeOffset);
@@ -174,7 +207,10 @@ int main() {
             timeOffset += (float)glfwGetTime() - timeOffset;
         }
 
-        glUniform2f(iMouseLocation, (float)mouseX, (float)(mode->height - mouseY)); // Coordonnées de la souris avec origine en bas à gauche
+        glUniform2f(iMouseLocation, (float)mouseX, (float)(600 - mouseY)); // Coordonnées de la souris avec origine en bas à gauche
+        glUniform1i(texture1Location, 0); // Ajoutez ceci
+
+        glBindTexture(GL_TEXTURE_2D, texture); // Ajoutez ceci
 
         glBindVertexArray(vao);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -186,6 +222,7 @@ int main() {
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
+    glDeleteTextures(1, &texture); // Ajoutez ceci
 
     glfwDestroyWindow(window);
     glfwTerminate();

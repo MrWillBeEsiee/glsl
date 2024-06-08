@@ -5,6 +5,7 @@ out vec4 FragColor;
 uniform vec2 iResolution;
 uniform float iTime;
 uniform vec2 iMouse; 
+uniform sampler2D texture1;
 
 #define MAX_DIST 20.0
 #define STEPS 100
@@ -41,10 +42,10 @@ vec2 dCylinder(vec3 p, float r, float h, float i) {
 
 vec2 dBox(vec3 p, vec3 s, float i) {
     vec3 diff = abs(p) - s;
-    float dE = length(max(diff,0.0));
-    float dI = min(max(diff.x,max(diff.y,diff.z)),0.0);
+    float dE = length(max(diff, 0.0));
+    float dI = min(max(diff.x, max(diff.y, diff.z)), 0.0);
     float d = dE + dI;
-    return vec2(i,d);
+    return vec2(i, d);
 }
 
 vec2 minVec2(vec2 a, vec2 b) {
@@ -54,7 +55,7 @@ vec2 minVec2(vec2 a, vec2 b) {
 vec2 scene(vec3 p) {
     vec2 dp = dPlane(p, 0.0, 0.0);
     vec2 ds = dSphere(p - vec3(0.0, 0.0, 0.0), 0.5, 1.0);
-    vec2 ds2 = dSphere(p - vec3(0.0, 0.5, -0.5), 0.3, 2.0);
+    vec2 ds2 = dSphere(p - vec3(0.0, 0.5, -0.5), 0.3, 1.0);
     vec2 dT = dTorus(p, 1.0, 0.2, 0.0);
     vec2 dC = dCylinder(p - vec3(0.3, 1, 0), 0.3, 0.2, 0.0);
     vec2 dB = dBox(p - vec3(0.8, 0.5, 0.3), vec3(0.3, 0.1, 0.3), 2.0);
@@ -117,7 +118,7 @@ vec3 material(float i) {
     vec3 col = vec3(0.0, 0.0, 0.0);
 
     if (i < 0.5) {
-        col = vec3(1,2,2);
+        col = vec3(1, 2, 2);
     } else if (i < 1.5) {
         col = vec3(1.0, 0.2, 0.3);
     } else if (i < 2.5) {
@@ -156,7 +157,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec3 sCol = vec3(0.5, 0.8, 1.0);
     vec3 col = mix(vec3(0.5, 0.8, 1.0), vec3(0.08, 0.3, 1.0), pow(uv.y + 0.5, 2.5));
 
-    if(d < MAX_DIST) {
+    if (d < MAX_DIST) {
         col = material(s.x);
         vec3 p = r0 + rD * d;
         vec3 nor = normal(p);
@@ -164,6 +165,12 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         vec3 a = vec3(5.0, 0.0, 10.0) * 0.03;
         vec3 aS = (nor.y * sCol) * 0.2;
         col = col * (a + l + aS);
+
+        // Appliquer la texture si l'objet est la box
+        if (s.x == 2.0) {
+            vec2 texCoords = vec2(mod(p.x + p.z, 1.0), mod(p.y, 1.0));
+            col = texture(texture1, texCoords).rgb;
+        }
     }
 
     col = pow(col, vec3(0.4545));
