@@ -12,6 +12,11 @@ uniform float objectRotationX; // Uniform pour la rotation de l'objet autour de 
 uniform float objectRotationY; // Uniform pour la rotation de l'objet autour de Y
 uniform float objectRotationZ; // Uniform pour la rotation de l'objet autour de Z
 
+uniform bool vignetteEnabled;
+uniform bool gammaCorrectionEnabled;
+uniform bool sepiaEnabled;
+uniform bool hueShiftEnabled;
+
 #define MAX_DIST 20.0
 #define STEPS 100
 #define PI 3.141592
@@ -328,12 +333,38 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         }
     }
 
+    // Post-traitement : sépia
+    if (sepiaEnabled) {
+        vec3 sepiaColor = vec3(0.0);
+        sepiaColor.r = dot(col, vec3(0.393, 0.769, 0.189));
+        sepiaColor.g = dot(col, vec3(0.349, 0.686, 0.168));
+        sepiaColor.b = dot(col, vec3(0.272, 0.534, 0.131));
+        col = sepiaColor;
+    }
+
+    // Post-traitement : changement de teinte
+    if (hueShiftEnabled) {
+        float angle = 1.0; // Changez cette valeur pour ajuster la teinte
+        float s = sin(angle);
+        float c = cos(angle);
+        mat3 hueRotation = mat3(
+            vec3(0.213 + c * 0.787 - s * 0.213, 0.213 - c * 0.213 + s * 0.143, 0.213 - c * 0.213 - s * 0.787),
+            vec3(0.715 - c * 0.715 - s * 0.715, 0.715 + c * 0.285 + s * 0.140, 0.715 - c * 0.715 + s * 0.715),
+            vec3(0.072 - c * 0.072 + s * 0.928, 0.072 - c * 0.072 - s * 0.283, 0.072 + c * 0.928 + s * 0.072)
+        );
+        col = col * hueRotation;
+    }
+
     // Post-traitement : vignette
-    float dist = length(uv);
-    col *= smoothstep(0.8, 0.2, dist);
+    if (vignetteEnabled) {
+        float dist = length(uv);
+        col *= smoothstep(0.8, 0.2, dist);
+    }
 
     // Post-traitement : correction gamma
-    col = pow(col, vec3(1.0 / 2.2));
+    if (gammaCorrectionEnabled) {
+        col = pow(col, vec3(1.0 / 2.2));
+    }
 
     fragColor = vec4(col.rgb, 1.0);
 }

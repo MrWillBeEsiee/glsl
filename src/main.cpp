@@ -6,15 +6,15 @@
 #include <sstream>
 #include <errno.h>
 #include <algorithm>
-#include "include/imgui.h"
-#include "include/imgui_impl_glfw.h"
-#include "include/imgui_impl_opengl3.h"
+#include "../include/imgui.h"
+#include "../include/imgui_impl_glfw.h"
+#include "../include/imgui_impl_opengl3.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 // Inclure stb_image.h et définir STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
-#include "include/stb_image.h"
+#include "../include/stb_image.h"
 
 // Fonction pour lire un fichier shader
 std::string readFile(const char* filePath) {
@@ -85,6 +85,12 @@ float objectRotationX = 0.0f; // Initialiser avec une rotation de 0 degrés auto
 float objectRotationY = 0.0f; // Initialiser avec une rotation de 0 degrés autour de Y
 float objectRotationZ = 0.0f; // Initialiser avec une rotation de 0 degrés autour de Z
 
+// Variables pour contrôler les post-traitements
+bool vignetteEnabled = true;
+bool gammaCorrectionEnabled = true;
+bool sepiaEnabled = false;
+bool hueShiftEnabled = false;
+
 // Fonction de rappel pour les événements clavier
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
@@ -127,8 +133,8 @@ int main() {
     glfwSetKeyCallback(window, keyCallback);
 
     // Lire les shaders depuis les fichiers
-    std::string vertexShader = readFile("shaders/vertex_shader.glsl");
-    std::string fragmentShader = readFile("shaders/fragment_shader.glsl");
+    std::string vertexShader = readFile("../src/shaders/vertex_shader.glsl");
+    std::string fragmentShader = readFile("../src/shaders/fragment_shader.glsl");
 
     GLuint shaderProgram = createShaderProgram(vertexShader, fragmentShader);
 
@@ -170,7 +176,7 @@ int main() {
 
     // Charger la texture
     int width, height, nrChannels;
-    unsigned char *data = stbi_load("texture/pierre.jpg", &width, &height, &nrChannels, 0);
+    unsigned char *data = stbi_load("../src/ressources/texture/pierre.jpg", &width, &height, &nrChannels, 0);
     if (!data) {
         std::cerr << "Failed to load texture" << std::endl;
         return -1;
@@ -206,6 +212,12 @@ int main() {
     GLint objectRotationYLocation = glGetUniformLocation(shaderProgram, "objectRotationY");
     GLint objectRotationZLocation = glGetUniformLocation(shaderProgram, "objectRotationZ");
 
+    // Locations des uniformes pour les post-traitements
+    GLint vignetteEnabledLocation = glGetUniformLocation(shaderProgram, "vignetteEnabled");
+    GLint gammaCorrectionEnabledLocation = glGetUniformLocation(shaderProgram, "gammaCorrectionEnabled");
+    GLint sepiaEnabledLocation = glGetUniformLocation(shaderProgram, "sepiaEnabled");
+    GLint hueShiftEnabledLocation = glGetUniformLocation(shaderProgram, "hueShiftEnabled");
+
     float timeOffset = 0.0f;
 
     while (!glfwWindowShouldClose(window)) {
@@ -236,6 +248,12 @@ int main() {
         glUniform1f(objectRotationYLocation, glm::radians(objectRotationY)); // Envoyer la rotation de l'objet autour de Y au shader
         glUniform1f(objectRotationZLocation, glm::radians(objectRotationZ)); // Envoyer la rotation de l'objet autour de Z au shader
 
+        // Envoyer les états des post-traitements aux shaders
+        glUniform1i(vignetteEnabledLocation, vignetteEnabled);
+        glUniform1i(gammaCorrectionEnabledLocation, gammaCorrectionEnabled);
+        glUniform1i(sepiaEnabledLocation, sepiaEnabled);
+        glUniform1i(hueShiftEnabledLocation, hueShiftEnabled);
+
         glBindVertexArray(vao);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -244,13 +262,17 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Créer une fenêtre ImGui pour contrôler le FOV et la position de l'objet
+        // Créer une fenêtre ImGui pour contrôler le FOV, la position de l'objet et les post-traitements
         ImGui::Begin("Contrôles de la scène");
         ImGui::SliderFloat("FOV", &fov, 30.0f, 120.0f);
         ImGui::SliderFloat3("Position de l'objet", glm::value_ptr(objectPosition), -1.5f, 1.5f);
         ImGui::SliderFloat("Rotation de l'objet autour de X", &objectRotationX, 0.0f, 360.0f); // Ajouter un slider pour la rotation de l'objet autour de X
         ImGui::SliderFloat("Rotation de l'objet autour de Y", &objectRotationY, 0.0f, 360.0f); // Ajouter un slider pour la rotation de l'objet autour de Y
         ImGui::SliderFloat("Rotation de l'objet autour de Z", &objectRotationZ, 0.0f, 360.0f); // Ajouter un slider pour la rotation de l'objet autour de Z
+        ImGui::Checkbox("Vignettage", &vignetteEnabled);
+        ImGui::Checkbox("Correction Gamma", &gammaCorrectionEnabled);
+        ImGui::Checkbox("Sepia", &sepiaEnabled);
+        ImGui::Checkbox("Changement de Teinte", &hueShiftEnabled);
         ImGui::End();
 
         // Rendu ImGui

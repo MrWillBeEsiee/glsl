@@ -1,6 +1,6 @@
 # Blender v2.78 (sub 0) OBJ File: 'Sting-Sword.blend'
 # www.blender.org
-mtllib Sting-Sword-lowpoly.mtl
+mtllib sword.mtl
 o Garde_Plane.002
 v 0.533389 0.797781 12.021531
 v 0.065799 0.798432 11.748100

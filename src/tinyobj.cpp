@@ -4,7 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <filesystem>
-#include "include/tiny_obj_loader.h"
+#include "../include/tiny_obj_loader.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -204,14 +204,22 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     radius -= yoffset;
     if (radius < 1.0f) radius = 1.0f;
-    if (radius > 10.0f) radius = 10.0f;
 
     cameraX = radius * cos(glm::radians(pitch)) * cos(glm::radians(yaw));
     cameraY = radius * sin(glm::radians(pitch));
     cameraZ = radius * cos(glm::radians(pitch)) * sin(glm::radians(yaw));
 }
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <OBJ file name>" << std::endl;
+        return -1;
+    }
+
+    const char* objFileName = argv[1];
+    std::string basePath = "../src/ressources/obj/";
+    std::string objPath = basePath + objFileName;
+
     // Initialize GLFW
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
@@ -251,7 +259,7 @@ int main() {
     std::vector<float> vertices;
     std::vector<float> normals;
     std::vector<tinyobj::material_t> materials;
-    if (!loadOBJ("obj/flat_vase.obj", vertices, normals, materials)) {
+    if (!loadOBJ(objPath.c_str(), vertices, normals, materials)) {
         std::cerr << "Failed to load OBJ file" << std::endl;
         return -1;
     }
